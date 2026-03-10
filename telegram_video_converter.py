@@ -21,9 +21,9 @@ from telethon.tl.functions.messages import GetHistoryRequest
 # ============================================================
 #  APNI DETAILS YAHAN BHARO
 # ============================================================
-API_ID       = 0            # Apna API ID (int) - my.telegram.org se milega
-API_HASH     = ""           # Apna API Hash (string) - my.telegram.org se milega
-PHONE        = ""           # Apna phone number e.g. "+919876543210"
+API_ID       = 24378977            # Apna API ID (int) - my.telegram.org se milega
+API_HASH     = "fad43dca16d4183c601a2e3e7eec7d44"           # Apna API Hash (string) - my.telegram.org se milega
+PHONE        = "+919341092981"           # Apna phone number e.g. "+919876543210"
 
 SOURCE_CHANNEL_ID  = -1003356165650   # Source channel ID (t.me/c/3356165650)
 BOT_USERNAME       = "@MultiUsage19DC4Bot"
