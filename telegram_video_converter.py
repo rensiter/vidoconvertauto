@@ -15,15 +15,18 @@ Usage:
 import asyncio
 import random
 from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 from telethon.tl.types import MessageMediaDocument
 from telethon.tl.functions.messages import GetHistoryRequest
 
 # ============================================================
 #  APNI DETAILS YAHAN BHARO
 # ============================================================
-API_ID       = 24378977            # Apna API ID (int) - my.telegram.org se milega
-API_HASH     = "fad43dca16d4183c601a2e3e7eec7d44"           # Apna API Hash (string) - my.telegram.org se milega
-PHONE        = "+919341092981"           # Apna phone number e.g. "+919876543210"
+import os
+API_ID          = int(os.environ.get("API_ID", 0))
+API_HASH        = os.environ.get("API_HASH", "")
+PHONE           = os.environ.get("PHONE", "")
+SESSION_STRING  = os.environ.get("SESSION_STRING", "")
 
 SOURCE_CHANNEL_ID  = -1003356165650   # Source channel ID (t.me/c/3356165650)
 BOT_USERNAME       = "@MultiUsage19DC4Bot"
@@ -35,7 +38,11 @@ DELAY_MIN    = 3     # Minimum seconds between each video
 DELAY_MAX    = 5     # Maximum seconds between each video
 # ============================================================
 
-client = TelegramClient("session_video_converter", API_ID, API_HASH)
+# Session string available ho toh use karo, warna file session
+if SESSION_STRING:
+    client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
+else:
+    client = TelegramClient("session_video_converter", API_ID, API_HASH)
 
 
 def is_video(message):
@@ -184,7 +191,10 @@ async def main():
     print(f"📬 Destination: {DEST_CHAT_ID}")
     print()
 
-    await client.start(phone=PHONE)
+    if SESSION_STRING:
+        await client.start()
+    else:
+        await client.start(phone=PHONE)
     print("✅ Telegram mein login ho gaye!\n")
 
     # Entities resolve karo
