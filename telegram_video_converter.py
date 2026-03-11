@@ -15,6 +15,7 @@ Usage:
 import asyncio
 import random
 from telethon import TelegramClient, events
+from telethon.errors import FloodWaitError
 from telethon.sessions import StringSession
 from telethon.tl.types import MessageMediaDocument
 from telethon.tl.functions.messages import GetHistoryRequest
@@ -32,7 +33,7 @@ SOURCE_CHANNEL_ID  = -1003356165650   # Source channel ID (t.me/c/3356165650)
 BOT_USERNAME       = "@MultiUsage19DC4Bot"
 DEST_CHAT_ID       = -1003637459451   # Destination chat
 
-MSG_START    = 2     # Pehla message ID
+MSG_START    = 9     # Pehla message ID
 MSG_END      = 581   # Aakhri message ID
 DELAY_MIN    = 3     # Minimum seconds between each video
 DELAY_MAX    = 5     # Maximum seconds between each video
@@ -101,7 +102,12 @@ async def process_video(message, bot_entity, dest_entity):
 
     # Step 1: Bot ko seedha forward karo (fast!)
     print(f"   📤 Bot ko forward kar raha hoon...")
-    await client.forward_messages(bot_entity, message)
+    try:
+        await client.forward_messages(bot_entity, message)
+    except FloodWaitError as e:
+        print(f"   ⏳ FloodWait! {e.seconds} seconds wait kar raha hoon...")
+        await asyncio.sleep(e.seconds + 5)
+        await client.forward_messages(bot_entity, message)
     await asyncio.sleep(2)
 
     # Step 2: Bot ka pehla response (main menu) lao
@@ -160,7 +166,12 @@ async def process_video(message, bot_entity, dest_entity):
 
     if converted_msg:
         print(f"   📨 Converted file destination mein forward kar raha hoon...")
-        await client.forward_messages(dest_entity, converted_msg)
+        try:
+            await client.forward_messages(dest_entity, converted_msg)
+        except FloodWaitError as e:
+            print(f"   ⏳ FloodWait! {e.seconds} seconds wait kar raha hoon...")
+            await asyncio.sleep(e.seconds + 5)
+            await client.forward_messages(dest_entity, converted_msg)
         print(f"   ✅ Successfully sent! Message ID: {msg_id}")
         return True
     else:
@@ -248,6 +259,10 @@ async def main():
                 success_count += 1
             else:
                 fail_count += 1
+        except FloodWaitError as e:
+            print(f"   ⏳ FloodWait! {e.seconds} seconds wait kar raha hoon...")
+            await asyncio.sleep(e.seconds + 5)
+            fail_count += 1
         except Exception as e:
             print(f"   ❌ Error aaya: {e}")
             fail_count += 1
