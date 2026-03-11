@@ -29,9 +29,9 @@ API_HASH        = os.environ.get("API_HASH", "")
 PHONE           = os.environ.get("PHONE", "")
 SESSION_STRING  = os.environ.get("SESSION_STRING", "")
 
-SOURCE_CHANNEL_ID  = -1003356165650   # Source channel ID (t.me/c/3356165650)
+SOURCE_CHANNEL_ID  = -1003213189116   # Source channel ID (t.me/c/3356165650)
 BOT_USERNAME       = "@MultiUsage19DC4Bot"
-DEST_CHAT_ID       = -1003637459451   # Destination chat
+DEST_CHAT_ID       = -1003875077565   # Destination chat
 
 MSG_START    = 9     # Pehla message ID
 MSG_END      = 581   # Aakhri message ID
