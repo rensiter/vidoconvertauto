@@ -159,15 +159,8 @@ async def process_video(message, bot_entity, dest_entity):
                 break
 
     if converted_msg:
-        print(f"   📨 Converted file destination mein send kar raha hoon (no forward tag)...")
-        import tempfile as _tf, os as _os2
-        with _tf.TemporaryDirectory() as tmpdir2:
-            dl_path = await client.download_media(converted_msg, file=tmpdir2)
-            await client.send_file(dest_entity, dl_path)
-            try:
-                _os2.remove(dl_path)
-            except:
-                pass
+        print(f"   📨 Converted file destination mein forward kar raha hoon...")
+        await client.forward_messages(dest_entity, converted_msg)
         print(f"   ✅ Successfully sent! Message ID: {msg_id}")
         return True
     else:
