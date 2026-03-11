@@ -99,19 +99,10 @@ async def process_video(message, bot_entity, dest_entity):
     print(f"\n{'='*50}")
     print(f"📹 Processing Message ID: {msg_id}")
 
-    # Step 1: Video download karke bot ko send karo (no forward attribution)
-    print(f"   📥 Video download kar raha hoon...")
-    import tempfile, os as _os
-    with tempfile.TemporaryDirectory() as tmpdir:
-        file_path = await client.download_media(message, file=tmpdir)
-        print(f"   📤 Bot ko send kar raha hoon (no forward tag)...")
-        caption = message.message or ""
-        await client.send_file(bot_entity, file_path, caption=caption)
-        try:
-            _os.remove(file_path)
-        except:
-            pass
-    await asyncio.sleep(3)
+    # Step 1: Bot ko seedha forward karo (fast!)
+    print(f"   📤 Bot ko forward kar raha hoon...")
+    await client.forward_messages(bot_entity, message)
+    await asyncio.sleep(2)
 
     # Step 2: Bot ka pehla response (main menu) lao
     bot_msg = await wait_for_bot_response(bot_entity, timeout=30)
