@@ -25,41 +25,61 @@ async def get_last_bot_msg_id():
     return 0
 
 
-async def wait_for_options_reply(last_msg_id: int, timeout: int = 30):
-    """Bot ka options wala reply wait karo (inline keyboard wala)"""
+async def wait_for_button_msg(after_id: int, timeout: int = 30):
+    """Bot ka inline button wala message wait karo"""
     for _ in range(timeout):
         await asyncio.sleep(1)
         async for msg in app.get_chat_history(BOT_USERNAME, limit=5):
-            if msg.id <= last_msg_id:
+            if msg.id <= after_id:
                 break
+            # Busy message — /cancel bhejo
+            if msg.text and "previous task" in msg.text.lower():
+                return "busy"
+            # Inline buttons wala message mila
             if msg.reply_markup:
                 return msg
     return None
 
 
-async def wait_for_content(last_msg_id: int, timeout: int = 300):
-    """Actual content aane tak wait karo, status messages ignore karo"""
-    print(f"    ⏳ Download complete hone ka wait kar raha hoon...")
+async def wait_for_final_content(after_id: int, timeout: int = 300):
+    """
+    Bot ka final content wait karo.
+    'Downloading' / 'Progress' wale messages ignore karo.
+    Sirf actual media ya text return karo.
+    """
+    print(f"    ⏳ Bot se content ka wait kar raha hoon...")
     for _ in range(timeout):
         await asyncio.sleep(1)
         async for msg in app.get_chat_history(BOT_USERNAME, limit=10):
-            if msg.id <= last_msg_id:
+            if msg.id <= after_id:
                 break
+
+            # Ye sab ignore karo — ye status messages hain
             if msg.text:
                 t = msg.text.lower()
-                if any(x in t for x in ["downloading", "please wait", "previous task", "processing", "fetching", "your media"]):
+                skip_words = ["downloading", "please wait", "previous task",
+                              "processing", "fetching", "your media file is",
+                              "progress", "cancel"]
+                if any(x in t for x in skip_words):
                     continue
+
+            # Inline buttons wala message bhi skip karo
+            if msg.reply_markup:
+                continue
+
+            # ✅ Actual content mila!
             if msg.photo or msg.video or msg.document or msg.audio or msg.voice or msg.sticker:
                 print(f"    ✅ Media content mila!")
                 return msg
-            if msg.text and len(msg.text) > 5:
+            if msg.text and len(msg.text) > 3:
                 print(f"    ✅ Text content mila!")
                 return msg
+
     return None
 
 
-async def send_to_storage(storage_id, msg, msg_id: int):
-    """Content ko storage channel mein copy karo without forwarded tag"""
+async def send_to_storage(storage_id: int, msg, msg_id: int):
+    """Content storage channel mein bhejo — without forwarded tag"""
     try:
         caption = msg.caption or ""
         if msg.photo:
@@ -77,58 +97,69 @@ async def send_to_storage(storage_id, msg, msg_id: int):
         elif msg.text:
             await app.send_message(storage_id, msg.text)
         else:
-            print(f"[MSG {msg_id}] ⚠️ Unknown content type")
+            print(f"[MSG {msg_id}] ⚠️ Unknown content type, skip")
             return False
-        print(f"[MSG {msg_id}] ✅ Storage channel mein copy ho gaya!")
+        print(f"[MSG {msg_id}] ✅ Storage mein bhej diya!")
         return True
     except Exception as e:
-        print(f"[MSG {msg_id}] ❌ Storage send error: {e}")
+        print(f"[MSG {msg_id}] ❌ Storage error: {e}")
         return False
 
 
-async def process_message(msg_id: int, storage_id: int):
-    """Ek message ka poora flow"""
+async def process_one(msg_id: int, storage_id: int):
+    """Ek message ka full flow"""
     link = f"https://t.me/c/{str(SOURCE_CHANNEL_ID).replace('-100', '')}/{msg_id}"
-    print(f"\n[MSG {msg_id}] 🔗 Link: {link}")
+    print(f"\n[MSG {msg_id}] 🔗 Link bhej raha hoon...")
 
-    # Step 1: Link bhejo
-    last_id = await get_last_bot_msg_id()
-    await app.send_message(BOT_USERNAME, link)
-    await asyncio.sleep(3)
+    for attempt in range(3):
+        # Step 1: Link bhejo
+        last_id = await get_last_bot_msg_id()
+        await app.send_message(BOT_USERNAME, link)
+        await asyncio.sleep(3)
 
-    # Step 2: Options reply (inline keyboard) wait karo
-    options_msg = await wait_for_options_reply(last_id, timeout=30)
-    if not options_msg:
-        print(f"[MSG {msg_id}] ⚠️ Bot ka options reply nahi aaya, skip")
-        return "skipped"
+        # Step 2: Button wala message wait karo
+        btn_msg = await wait_for_button_msg(last_id, timeout=30)
 
-    # Step 3: SIRF button click karo
-    last_id = options_msg.id
-    print(f"[MSG {msg_id}] 🖱️ 'Without Session' button click kar raha hoon...")
-    try:
-        await options_msg.click("Without Session")
-        print(f"[MSG {msg_id}] ✅ Button clicked!")
-    except Exception as e:
-        print(f"[MSG {msg_id}] ❌ Button click fail: {e}, skip")
-        return "skipped"
+        if btn_msg == "busy":
+            print(f"[MSG {msg_id}] ⚠️ Bot busy hai, /cancel bhej ke retry ({attempt+1}/3)...")
+            await app.send_message(BOT_USERNAME, "/cancel")
+            await asyncio.sleep(4)
+            continue
 
-    await asyncio.sleep(2)
+        if not btn_msg:
+            print(f"[MSG {msg_id}] ⚠️ Button message nahi aaya, skip")
+            return "skipped"
 
-    # Step 4: Download complete hone tak wait karo
-    content = await wait_for_content(last_id, timeout=300)
-    if not content:
-        print(f"[MSG {msg_id}] ⚠️ Content timeout, skip")
-        return "skipped"
+        # Step 3: "Without Session" button click karo
+        after_btn_id = btn_msg.id
+        print(f"[MSG {msg_id}] 🖱️ 'Without Session' click kar raha hoon...")
+        try:
+            await btn_msg.click("Without Session")
+            print(f"[MSG {msg_id}] ✅ Clicked!")
+        except Exception as e:
+            print(f"[MSG {msg_id}] ❌ Click fail: {e}")
+            return "skipped"
 
-    # Step 5: Storage mein bhejo
-    success = await send_to_storage(storage_id, content, msg_id)
+        await asyncio.sleep(2)
 
-    # Random 5-10 sec delay
-    delay = random.randint(5, 10)
-    print(f"[MSG {msg_id}] ⏳ Next ke liye {delay}s wait...")
-    await asyncio.sleep(delay)
+        # Step 4: Bot ka final content wait karo (download hone do)
+        content = await wait_for_final_content(after_btn_id, timeout=300)
 
-    return "success" if success else "error"
+        if not content:
+            print(f"[MSG {msg_id}] ⚠️ Content nahi aaya, skip")
+            return "skipped"
+
+        # Step 5: Storage mein bhejo
+        ok = await send_to_storage(storage_id, content, msg_id)
+
+        # Step 6: 6-12 sec wait karo
+        delay = random.randint(6, 12)
+        print(f"[MSG {msg_id}] ⏳ {delay}s wait kar raha hoon next ke liye...")
+        await asyncio.sleep(delay)
+
+        return "success" if ok else "error"
+
+    return "skipped"
 
 
 async def main():
@@ -147,27 +178,29 @@ async def main():
         # Bot resolve
         try:
             await app.get_chat(BOT_USERNAME)
-            print(f"✅ Bot resolved: {BOT_USERNAME}")
+            print(f"✅ Bot resolved")
         except Exception as e:
             print(f"⚠️ Bot resolve error: {e}")
 
-        # Storage channel resolve by username
+        # Storage channel resolve
         try:
             storage_chat = await app.get_chat(STORAGE_USERNAME)
             storage_id = storage_chat.id
-            print(f"✅ Storage channel resolved: {storage_chat.title} ({storage_id})")
+            print(f"✅ Storage: {storage_chat.title}")
         except Exception as e:
-            print(f"❌ Storage channel resolve fail: {e}")
+            print(f"❌ Storage resolve fail: {e}")
             return
 
         # Source channel naam
+        source_name = str(SOURCE_CHANNEL_ID)
         try:
             source_chat = await app.get_chat(SOURCE_CHANNEL_ID)
-            source_name = source_chat.title or str(SOURCE_CHANNEL_ID)
+            source_name = source_chat.title or source_name
+            print(f"✅ Source: {source_name}")
         except Exception:
-            source_name = str(SOURCE_CHANNEL_ID)
+            print(f"⚠️ Source naam nahi mila, ID use karunga")
 
-        # Start notification
+        # Start message
         await app.send_message(
             storage_id,
             f"🚀 **Task Started!**\n\n"
@@ -181,7 +214,7 @@ async def main():
         for msg_id in range(MSG_START, MSG_END + 1):
             while True:
                 try:
-                    result = await process_message(msg_id, storage_id)
+                    result = await process_one(msg_id, storage_id)
                     if result == "success":
                         success_count += 1
                     elif result == "skipped":
@@ -191,16 +224,16 @@ async def main():
                     break
 
                 except FloodWait as e:
-                    print(f"⏳ FloodWait: {e.value}s wait kar raha hoon...")
+                    print(f"⏳ FloodWait: {e.value}s...")
                     await asyncio.sleep(e.value + 5)
 
                 except Exception as e:
-                    print(f"❌ Unexpected error MSG {msg_id}: {e}")
+                    print(f"❌ Error MSG {msg_id}: {e}")
                     error_count += 1
                     await asyncio.sleep(5)
                     break
 
-        # Summary
+        # Final summary
         end_time = datetime.datetime.now()
         duration = end_time - start_time
         h, rem = divmod(int(duration.total_seconds()), 3600)
