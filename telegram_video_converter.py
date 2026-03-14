@@ -138,12 +138,14 @@ async def main():
         except Exception as e:
             print(f"⚠️ Bot resolve error: {e}")
 
+        # Storage channel resolve - username se try karo
         try:
-            storage_chat = await app.get_chat(STORAGE_CHANNEL_ID)
+            storage_chat = await app.get_chat("@miningtohole")
             print(f"✅ Storage channel resolved: {storage_chat.title}")
+            STORAGE_CHANNEL_ID = storage_chat.id
         except Exception as e:
             print(f"❌ Storage channel resolve nahi hua: {e}")
-            print("💡 Storage channel mein manually ek message bhejo apne account se, phir retry karo")
+            print("💡 @miningtohole channel join karo apne account se, phir retry karo")
             return
 
         # Source channel ka naam lo
