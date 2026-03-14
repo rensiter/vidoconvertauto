@@ -6,6 +6,7 @@ from pyrogram.errors import FloodWait, MessageNotModified
 # ============ VARIABLES (Railway mein set karo) ============
 API_ID = int(os.environ.get("API_ID", "0"))
 API_HASH = os.environ.get("API_HASH", "")
+SESSION_STRING = os.environ.get("SESSION_STRING", "")
 SOURCE_CHANNEL_ID = int(os.environ.get("SOURCE_CHANNEL_ID", "0"))  # e.g. -1002533036931
 STORAGE_CHANNEL_ID = int(os.environ.get("STORAGE_CHANNEL_ID", "0"))  # e.g. -1001234567890
 BOT_USERNAME = "@MultiUsage19DC4Bot"
@@ -14,7 +15,7 @@ BOT_USERNAME = "@MultiUsage19DC4Bot"
 MSG_START = 3
 MSG_END = 119
 
-app = Client("my_account", api_id=API_ID, api_hash=API_HASH)
+app = Client("my_account", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
 
 
 async def wait_for_bot_reply(last_msg_id: int, timeout: int = 60):
@@ -48,7 +49,7 @@ async def send_link_and_handle(msg_id: int):
     reply = await wait_for_bot_reply(last_id, timeout=30)
     if not reply:
         print(f"[MSG {msg_id}] Bot ne reply nahi kiya, skip kar raha hoon")
-        return
+        return "skipped"
 
     print(f"[MSG {msg_id}] Bot ka reply mila, 'Without Session' bhej raha hoon")
 
@@ -61,7 +62,7 @@ async def send_link_and_handle(msg_id: int):
     content_reply = await wait_for_bot_reply(last_id, timeout=90)
     if not content_reply:
         print(f"[MSG {msg_id}] Content nahi mila, skip")
-        return
+        return "skipped"
 
     print(f"[MSG {msg_id}] Content mila! Storage channel mein copy kar raha hoon...")
 
@@ -118,29 +119,80 @@ async def send_link_and_handle(msg_id: int):
 
 
 async def main():
+    import datetime
+
     print("🚀 Script start ho rahi hai...")
     print(f"📋 Range: MSG {MSG_START} to {MSG_END}")
     print(f"🤖 Bot: {BOT_USERNAME}")
 
+    success_count = 0
+    skip_count = 0
+    error_count = 0
+    start_time = datetime.datetime.now()
+
     async with app:
+        # Source channel ka naam lo
+        try:
+            source_chat = await app.get_chat(SOURCE_CHANNEL_ID)
+            source_name = source_chat.title or str(SOURCE_CHANNEL_ID)
+        except Exception:
+            source_name = str(SOURCE_CHANNEL_ID)
+
+        # Start hone ka notification storage channel mein bhejo
+        await app.send_message(
+            STORAGE_CHANNEL_ID,
+            f"🚀 **Task Started!**\n\n"
+            f"📢 **Source Channel:** {source_name}\n"
+            f"📋 **Range:** MSG {MSG_START} to {MSG_END}\n"
+            f"🕐 **Start Time:** {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"⏳ Processing..."
+        )
+
         for msg_id in range(MSG_START, MSG_END + 1):
             while True:
                 try:
-                    await send_link_and_handle(msg_id)
-                    await asyncio.sleep(3)  # Next message se pehle thoda wait
+                    result = await send_link_and_handle(msg_id)
+                    if result == "skipped":
+                        skip_count += 1
+                    else:
+                        success_count += 1
+                    await asyncio.sleep(3)
                     break
 
                 except FloodWait as e:
                     print(f"⏳ FloodWait: {e.value} seconds wait kar raha hoon...")
                     await asyncio.sleep(e.value + 5)
-                    # Auto resume same msg_id se
 
                 except Exception as e:
                     print(f"❌ Error MSG {msg_id}: {e}")
+                    error_count += 1
                     await asyncio.sleep(5)
                     break
 
-    print("\n✅ Sab complete ho gaya!")
+        end_time = datetime.datetime.now()
+        duration = end_time - start_time
+        hours, remainder = divmod(int(duration.total_seconds()), 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        # Final summary storage channel mein bhejo
+        summary = (
+            f"✅ **Task Complete!**\n\n"
+            f"📢 **Source Channel:** {source_name}\n"
+            f"📋 **Range:** MSG {MSG_START} to {MSG_END}\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"✅ **Successful:** {success_count}\n"
+            f"⏭️ **Skipped:** {skip_count}\n"
+            f"❌ **Errors:** {error_count}\n"
+            f"📦 **Total Processed:** {success_count + skip_count + error_count}\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"🕐 **Start:** {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"🕑 **End:** {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"⏱️ **Duration:** {hours}h {minutes}m {seconds}s"
+        )
+
+        await app.send_message(STORAGE_CHANNEL_ID, summary)
+        print("\n✅ Sab complete ho gaya!")
+        print(summary)
 
 
 if __name__ == "__main__":
