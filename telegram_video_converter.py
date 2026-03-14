@@ -131,6 +131,21 @@ async def main():
     start_time = datetime.datetime.now()
 
     async with app:
+        # Channels ko resolve karo (peer cache fix)
+        try:
+            await app.get_chat(BOT_USERNAME)
+            print(f"✅ Bot resolved: {BOT_USERNAME}")
+        except Exception as e:
+            print(f"⚠️ Bot resolve error: {e}")
+
+        try:
+            storage_chat = await app.get_chat(STORAGE_CHANNEL_ID)
+            print(f"✅ Storage channel resolved: {storage_chat.title}")
+        except Exception as e:
+            print(f"❌ Storage channel resolve nahi hua: {e}")
+            print("💡 Storage channel mein manually ek message bhejo apne account se, phir retry karo")
+            return
+
         # Source channel ka naam lo
         try:
             source_chat = await app.get_chat(SOURCE_CHANNEL_ID)
