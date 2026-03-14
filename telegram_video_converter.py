@@ -8,7 +8,7 @@ API_ID = int(os.environ.get("API_ID", "0"))
 API_HASH = os.environ.get("API_HASH", "")
 SESSION_STRING = os.environ.get("SESSION_STRING", "")
 SOURCE_CHANNEL_ID = int(os.environ.get("SOURCE_CHANNEL_ID", "0"))  # e.g. -1002533036931
-STORAGE_CHANNEL_ID = -1003872189955
+STORAGE_CHANNEL_ID = -1003637459451
 BOT_USERNAME = "@MultiUsage19DC4Bot"
 # ==========================================================
 
