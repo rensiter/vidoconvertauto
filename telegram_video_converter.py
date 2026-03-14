@@ -51,11 +51,16 @@ async def send_link_and_handle(msg_id: int):
         print(f"[MSG {msg_id}] Bot ne reply nahi kiya, skip kar raha hoon")
         return "skipped"
 
-    print(f"[MSG {msg_id}] Bot ka reply mila, 'Without Session' bhej raha hoon")
+    print(f"[MSG {msg_id}] Bot ka reply mila, 'Without Session' button click kar raha hoon")
 
-    # Step 3: "Without Session" button ka command bhejo
+    # Step 3: "Without Session" button click karo
     last_id = reply.id
-    await app.send_message(BOT_USERNAME, "Without Session")
+    try:
+        await reply.click("Without Session")
+        print(f"[MSG {msg_id}] Button click ho gaya!")
+    except Exception as e:
+        print(f"[MSG {msg_id}] Button click error: {e}, text se try kar raha hoon")
+        await app.send_message(BOT_USERNAME, "Without Session")
     await asyncio.sleep(2)
 
     # Step 4: Bot ka content reply wait karo (media/text)
