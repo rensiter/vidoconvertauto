@@ -1,1 +1,1 @@
-worker: python telegram_video_converter.py
+worker: python telegram_forwarder.py
